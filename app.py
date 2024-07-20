@@ -1,12 +1,12 @@
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.chrome.service import Service
+import time
+import pandas as pd
 from flask import Flask, render_template, request,jsonify
 from flask_cors import CORS,cross_origin
 import requests
-from bs4 import BeautifulSoup as bs
-from urllib.request import urlopen as uReq
-import logging
 import pymongo
-logging.basicConfig(filename="scrapper.log" , level=logging.INFO)
-
 app = Flask(__name__)
 
 @app.route("/", methods = ['GET'])
@@ -17,78 +17,57 @@ def homepage():
 def index():
     if request.method == 'POST':
         try:
+            driver_path = r"C:\Users\KAMESH\OneDrive\Desktop\DATA SCIENCE\ASSIGNMENT ANSWERS\chromedriver-win64\chromedriver.exe"
+            service = Service(driver_path)
+            driver = webdriver.Chrome(service=service)
             searchString = request.form['content'].replace(" ","")
-            flipkart_url = "https://www.flipkart.com/search?q=" + searchString
-            uClient = uReq(flipkart_url)
-            flipkartPage = uClient.read()
-            uClient.close()
-            flipkart_html = bs(flipkartPage, "html.parser")
-            bigboxes = flipkart_html.findAll("div", {"class": "_1AtVbE col-12-12"})
-            del bigboxes[0:3]
-            box = bigboxes[0]
-            productLink = "https://www.flipkart.com" + box.div.div.div.a['href']
-            prodRes = requests.get(productLink)
-            prodRes.encoding='utf-8'
-            prod_html = bs(prodRes.text, "html.parser")
-            print(prod_html)
-            commentboxes = prod_html.find_all('div', {'class': "_16PBlm"})
+            url = 'https://www.meesho.com/search?q=' + searchString
+            driver.get(url)
 
-            filename = searchString + ".csv"
-            fw = open(filename, "w")
-            headers = "Product, Customer Name, Rating, Heading, Comment \n"
-            fw.write(headers)
-            reviews = []
-            for commentbox in commentboxes:
-                try:
-                    #name.encode(encoding='utf-8')
-                    name = commentbox.div.div.find_all('p', {'class': '_2sc7ZR _2V5EHH'})[0].text
+            # Scroll parameters
+            SCROLL_PAUSE_TIME = 3
+            MAX_SCROLL_HEIGHT = 1000  # Adjust this height as needed
 
-                except:
-                    logging.info("name")
+            last_height = driver.execute_script("return document.documentElement.scrollHeight")
+            scroll_height = 0
 
-                try:
-                    #rating.encode(encoding='utf-8')
-                    rating = commentbox.div.div.div.div.text
+            while scroll_height < MAX_SCROLL_HEIGHT:
+                driver.execute_script("window.scrollTo(0, arguments[0]);", last_height)
+                time.sleep(SCROLL_PAUSE_TIME)
+                new_height = driver.execute_script("return document.documentElement.scrollHeight")
+                scroll_height = new_height - last_height
+                last_height = new_height
 
+            # Extract data
+            images_ = driver.find_elements(By.XPATH, '//*[@id="__next"]/div[3]/div/div[1]/div/div[2]/div[1]/img')
+            name = driver.find_elements(By.XPATH, '//*[@id="__next"]/div[3]/div/div[2]/div[3]/div/p[1]')
+            fabric = driver.find_elements(By.XPATH, '//*[@id="__next"]/div[3]/div/div[2]/div[3]/div/p[2]')
+            Amount = driver.find_elements(By.XPATH, '//*[@id="__next"]/div[3]/div/div[2]/div[1]/div[1]/h4')
+            country_of_origin = driver.find_elements(By.XPATH, '//*[@id="__next"]/div[3]/div/div[2]/div[3]/div/p[14]')
 
-                except:
-                    rating = 'No Rating'
-                    logging.info("rating")
+            data = []
+            for i, j, k, m, n in zip(images_[:10], name[:10], fabric[:10], Amount[:10], country_of_origin[:10]):
+                data.append([i.get_attribute('src'), j.text, k.text, m.text, n.text])
 
-                try:
-                    #commentHead.encode(encoding='utf-8')
-                    commentHead = commentbox.div.div.div.p.text
+            df = pd.DataFrame(data, columns=['Image_link', 'Name_of_dress', 'Fabric', 'Amount', 'Country_of_origin'])
+            driver.quit()
+            mydict = {
+                "Product": searchString,
+                "Name": [n.text for n in name[:10]],
+                "Images": [i.get_attribute('src') for i in images_[:10]],
+                "Fabric": [k.text for k in fabric[:10]],
+                "Amount": [m.text for m in Amount[:10]],
+                "Country_of_origin": [n.text for n in country_of_origin[:10]]}
+            client = pymongo.MongoClient("mongodb+srv://kamesh27professional:kameshisprofessional@cluster0.495zhgz.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0")
+            db =client['scrapper_Meesho']
+            coll_pw_eng = db['scraper_Meesho']
+            coll_pw_eng.insert_many(mydict)
 
-                except:
-                    commentHead = 'No Comment Heading'
-                    logging.info(commentHead)
-                try:
-                    comtag = commentbox.div.div.find_all('div', {'class': ''})
-                    #custComment.encode(encoding='utf-8')
-                    custComment = comtag[0].div.text
-                except Exception as e:
-                    logging.info(e)
-
-                mydict = {"Product": searchString, "Name": name, "Rating": rating, "CommentHead": commentHead,
-                          "Comment": custComment}
-                reviews.append(mydict)
-            logging.info("log my final result {}".format(reviews))
-
-            
-            client = pymongo.MongoClient("mongodb+srv://pwskills:pwskills@cluster0.ln0bt5m.mongodb.net/?retryWrites=true&w=majority")
-            db =client['scrapper_eng_pwskills']
-            coll_pw_eng = db['scraper_pwskills_eng']
-            coll_pw_eng.insert_many(reviews)
-
-            return render_template('result.html', reviews=reviews[0:(len(reviews)-1)])
+            return render_template('result.html', df=df[0:(len(df)-1)])
         except Exception as e:
-            logging.info(e)
             return 'something is wrong'
-    # return render_template('results.html')
-
     else:
         return render_template('index.html')
-
 
 if __name__=="__main__":
     app.run(host="0.0.0.0")
