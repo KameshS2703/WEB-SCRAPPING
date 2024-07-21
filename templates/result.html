@@ -16,17 +16,13 @@
       <tr>
         <th>Image_Link</th>
         <th>Name_of_dress</th>
-        <th>Fabric</th>
         <th>Amount</th>
-        <th>Country_of_origin </th>
       </tr>
       {% for review in reviews %}
       <tr>
         <td>{{ review['images_'] }}</td>
         <td>{{ review['name'] }}</td>
-        <td>{{ review['fabric'] }}</td>
-        <td>{{ review['amount'] }}</td>
-        <td>{{ review['Country_of_origin'] }}</td>
+        <td>{{ review['Amount'] }}</td>
       </tr>
       {% endfor %}
     </table>
