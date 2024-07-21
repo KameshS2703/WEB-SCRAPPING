@@ -2,14 +2,10 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.service import Service
 import time
-import pandas as pd
-from flask import Flask, render_template, request,jsonify
-from flask_cors import CORS,cross_origin
-import requests
-import pymongo
 import random
+from flask import Flask, render_template, request
 from selenium.webdriver.chrome.options import Options
-
+import pandas as pd
 app = Flask(__name__)
 user_agents = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
@@ -18,55 +14,47 @@ user_agents = [
 ]
 chrome_options = Options()
 chrome_options.add_argument(f"user-agent={random.choice(user_agents)}")
-@app.route("/", methods = ['GET'])
+
+@app.route("/", methods=['GET'])
 def homepage():
     return render_template("index.html")
 
-@app.route("/review" , methods = ['POST' , 'GET'])
+@app.route("/review", methods=['POST', 'GET'])
 def index():
     if request.method == 'POST':
         try:
             driver_path = r"C:\Users\KAMESH\OneDrive\Desktop\DATA SCIENCE\ASSIGNMENT ANSWERS\chromedriver-win64\chromedriver.exe"
             service = Service(driver_path)
             driver = webdriver.Chrome(service=service)
-            searchString = request.form['content'].replace(" ","")
-            url = 'https://www.bigbasket.com/ps/?q=' + searchString
+            searchString = request.form['content'].replace(" ", "")
+            url='https://www.youtube.com/'+ searchString +'/videos'
             driver.get(url)
-
-            # Scroll parameters
-            SCROLL_PAUSE_TIME = 3
-            MAX_SCROLL_HEIGHT = 1000  # Adjust this height as needed
-
-            last_height = driver.execute_script("return document.documentElement.scrollHeight")
-            scroll_height = 0
-
-            while scroll_height < MAX_SCROLL_HEIGHT:
-                driver.execute_script("window.scrollTo(0, arguments[0]);", last_height)
+            SCROLL_PAUSE_TIME=3
+            last_height=driver.execute_script("return document.documentElement.scrolllHeight")
+            while True:
+                driver.execute_script("window.scrollTo(0,arguments[0]);",last_height)
                 time.sleep(SCROLL_PAUSE_TIME)
-                new_height = driver.execute_script("return document.documentElement.scrollHeight")
-                scroll_height = new_height - last_height
-                last_height = new_height
-
-            # Extract data
-            images_ = driver.find_elements(By.CSS_SELECTOR, 'img')
-            name = driver.find_elements(By.XPATH, '//*[@id="siteLayout"]/div/div/section[1]/div[2]/section[1]/h1')
-            Amount = driver.find_elements(By.XPATH, '//*[@id="siteLayout"]/div/div/section[1]/div[2]/section[1]/table/tr[2]/td[1]')
-            
-
-            data = []
-            for i, j, k in zip(images_[:10], name[:10], Amount[:10]):
-                data.append([i.get_attribute('src'), j.text, k.text])
-
-            df = pd.DataFrame(data, columns=['Image_Link', 'Name_Of_Product', 'Amount_Of_Product'])
+                new_height=driver.execute_script("return document.documentElement.scrollHeight")
+                if new_height == last_height:
+                    break
+                last_height=new_height
+            titles=driver.find_elements(By.ID,"video-title")
+            views=driver.find_elements(By.XPATH,'//*[@id="metadata-line"]/span[1]')
+            images=driver.find_elements(By.CSS_SELECTOR, 'img.yt-core-image.yt-core-image--fill-parent-height.yt-core-image--fill-parent-width.yt-core-image--content-mode-scale-aspect-fill.yt-core-image--loaded')
+            url=driver.find_elements(By.XPATH,'//*[@id="thumbnail"]')
+            video_time=driver.find_elements(By.XPATH, '//*[@id="metadata-line"]/span[2]')
+            data=[]
+            for i,j,k,m,n in zip(titles[:5],views[:5],images[1:6],url[3:8],video_time[:5]):
+                 data.append([i.text,j.text,k.get_attribute('src'),m.get_attribute('href'),n.text])
+            df=pd.DataFrame(data,columns=['title','views','thumbnail','URL','TIME'])
+            df.to_csv("youtube_videos_details.csv")
+            html_table = df.to_html(classes='table table-striped', escape=False, index=False)
             driver.quit()
-            
-            
-
-            return render_template('result.html',df[0:(len(df)-1)])
+            return render_template('result.html',html_table=html_table)
         except Exception as e:
-            return e
+            return str(e)
     else:
         return render_template('index.html')
 
-if __name__=="__main__":
+if __name__ == "__main__":
     app.run(host="0.0.0.0",debug=True)

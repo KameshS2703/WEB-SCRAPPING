@@ -1,32 +1,15 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-  <meta charset="UTF-8">
-  <title>Review Page</title>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/normalize/5.0.0/normalize.min.css">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-  <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube Videos Details</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css">
 </head>
-
 <body>
-  <div class="table-users">
-    <div class="header">Reviews</div>
-    <table cellspacing="0">
-      <tr>
-        <th>Image_Link</th>
-        <th>Name_of_dress</th>
-        <th>Amount</th>
-      </tr>
-      {% for review in reviews %}
-      <tr>
-        <td>{{ review['images_'] }}</td>
-        <td>{{ review['name'] }}</td>
-        <td>{{ review['Amount'] }}</td>
-      </tr>
-      {% endfor %}
-    </table>
-  </div>
+    <div class="container">
+        <h2 class="mt-4">YouTube Videos Details</h2>
+        {{ html_table | safe }}
+    </div>
 </body>
-
 </html>
